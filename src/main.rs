@@ -1,11 +1,14 @@
-use bevy::app::App;
+use bevy::prelude::*;
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
+
+use game::GamePlugin;
+
+mod game;
 
 fn main() {
     App::new()
-        .add_system(hello_world)
+        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
+        .add_plugin(WorldInspectorPlugin::new())
+        .add_plugin(GamePlugin)
         .run();
-}
-
-fn hello_world() {
-    println!("hello world!!");
 }
