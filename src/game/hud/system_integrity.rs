@@ -26,6 +26,8 @@ pub(super) enum SystemIntegrityState {
     Hacked,
 }
 
+const SYSTEM_INTEGRITY_INITIAL_VALUE: u8 = 100;
+
 pub(super) fn spawn_system_integrity(
     texture_atlases: &mut ResMut<Assets<TextureAtlas>>,
     asset_server: &Res<AssetServer>,
@@ -56,7 +58,7 @@ fn spawn_system_integrity_value(
     );
 
     parent.spawn((
-        SystemIntegrityValue(100),
+        SystemIntegrityValue(SYSTEM_INTEGRITY_INITIAL_VALUE),
         SpatialBundle {
             transform: Transform::from_xyz(3.0, 1.5, 0.0),
             ..default()
