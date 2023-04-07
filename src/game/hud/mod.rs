@@ -23,11 +23,13 @@ impl Plugin for HudPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_state::<SystemIntegrityState>()
-            .register_type::<SystemIntegrity>()
+            .register_type::<SystemIntegrityValue>()
+            .register_type::<SystemIntegrityValueDigit>()
             .add_startup_system(spawn_hud)
             .add_system(update_system_integrity_state)
             .add_system(update_system_integrity_background.after(update_system_integrity_state))
-            .add_system(update_system_integrity_fan.after(update_system_integrity_state));
+            .add_system(update_system_integrity_fan.after(update_system_integrity_state))
+            .add_system(update_system_integrity_digits);
     }
 }
 
@@ -49,7 +51,11 @@ fn spawn_hud(
             ..default()
         }
     )).with_children(|parent| {
-        spawn_system_integrity(&mut texture_atlases, &asset_server, parent);
+        spawn_system_integrity(
+            &mut texture_atlases,
+            &asset_server,
+            parent
+        );
         spawn_memory_cache(&asset_server, parent);
         spawn_system_protection(&asset_server, parent);
     });

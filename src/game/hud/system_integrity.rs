@@ -2,14 +2,20 @@ use bevy::prelude::*;
 
 use crate::game::animation::{AnimationIndices, AnimationTimer};
 
-#[derive(Component, Reflect)]
-pub struct SystemIntegrity(pub u8);
+#[derive(Component)]
+pub struct SystemIntegrity;
 
 #[derive(Component)]
 pub struct SystemIntegrityBackground;
 
 #[derive(Component)]
 pub struct SystemIntegrityFan;
+
+#[derive(Component, Reflect)]
+pub struct SystemIntegrityValue(pub u8);
+
+#[derive(Component, Reflect)]
+pub struct SystemIntegrityValueDigit;
 
 #[derive(States, Debug, Clone, Copy, Default, Eq, PartialEq, Hash)]
 pub(super) enum SystemIntegrityState {
@@ -26,11 +32,46 @@ pub(super) fn spawn_system_integrity(
     parent: &mut ChildBuilder,
 ) {
     parent.spawn((
-        SystemIntegrity(100),
+        SystemIntegrity {},
         SpatialBundle { ..default() },
     )).with_children(|parent| {
+        spawn_system_integrity_value(texture_atlases, asset_server, parent);
         spawn_system_integrity_background(texture_atlases, asset_server, parent);
         spawn_system_integrity_fan(texture_atlases, asset_server, parent);
+    });
+}
+
+fn spawn_system_integrity_value(
+    texture_atlases: &mut ResMut<Assets<TextureAtlas>>,
+    asset_server: &Res<AssetServer>,
+    parent: &mut ChildBuilder,
+) {
+    let texture_atlas = &TextureAtlas::from_grid(
+        asset_server.load("textures/UI/SI/UI_SI_Numbers.png"),
+        Vec2::new(6.0, 11.0),
+        10,
+        3,
+        None,
+        None,
+    );
+
+    parent.spawn((
+        SystemIntegrityValue(100),
+        SpatialBundle {
+            transform: Transform::from_xyz(3.0, 1.5, 0.0),
+            ..default()
+        },
+    )).with_children(|parent| {
+        for _ in 0..3 {
+            parent.spawn((
+                SystemIntegrityValueDigit {},
+                SpriteSheetBundle {
+                    texture_atlas: texture_atlases.add(texture_atlas.clone()),
+                    sprite: TextureAtlasSprite::new(0),
+                    ..default()
+                }
+            ));
+        }
     });
 }
 
@@ -87,7 +128,7 @@ fn spawn_system_integrity_fan(
 pub(super) fn update_system_integrity_state(
     state: Res<State<SystemIntegrityState>>,
     mut next_state: ResMut<NextState<SystemIntegrityState>>,
-    mut query: Query<&SystemIntegrity>,
+    mut query: Query<&SystemIntegrityValue>,
 ) {
     if let Ok(system_integrity) = query.get_single_mut() {
         match system_integrity.0 {
@@ -114,6 +155,39 @@ pub(super) fn update_system_integrity_state(
             _ => ()
         }
     }
+}
+
+pub(super) fn update_system_integrity_digits(
+    state: Res<State<SystemIntegrityState>>,
+    value_query: Query<&SystemIntegrityValue>,
+    mut digit_query: Query<(&mut Transform, &mut TextureAtlasSprite, &mut Visibility), With<SystemIntegrityValueDigit>>,
+) {
+    let value = value_query.get_single().unwrap();
+    let size = Vec2::new(6.0, 11.0);
+    let columns = 10;
+    let spacing: f32 = 1.0;
+
+    let binding = value.0.to_string();
+    let mut digits = binding.chars();
+    let count = digits.clone().count();
+    let width = count as f32 * size.x + (count as f32 - 1.0) * spacing;
+    let line = match state.0 {
+        SystemIntegrityState::Absolute => 0,
+        SystemIntegrityState::Reliable => 1,
+        SystemIntegrityState::Vulnerable | SystemIntegrityState::Hacked => 2
+    };
+
+    digit_query.iter_mut().enumerate().for_each(|(i, item)| {
+        let (mut transform, mut sprite, mut visibility) = item;
+        if let Some(digit_value) = digits.next() {
+            transform.translation.x = -width / 2.0 + i as f32 * (size.x + spacing);
+            let column: usize = digit_value.to_string().parse().unwrap();
+            sprite.index = line * columns + column;
+            *visibility = Visibility::Visible;
+        } else {
+            *visibility = Visibility::Hidden;
+        }
+    });
 }
 
 pub(super) fn update_system_integrity_background(
@@ -158,4 +232,3 @@ pub(super) fn update_system_integrity_fan(
         }
     }
 }
-
