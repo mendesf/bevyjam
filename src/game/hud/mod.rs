@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
+use bitmap_font::*;
 use memory_cache::*;
 use system_integrity::*;
 use system_protection::*;
@@ -8,6 +9,7 @@ use system_protection::*;
 mod system_integrity;
 mod memory_cache;
 mod system_protection;
+mod bitmap_font;
 
 #[derive(Component)]
 pub struct Hud;
@@ -28,11 +30,11 @@ impl Plugin for HudPlugin {
             .register_type::<SystemProtectionValue>()
             .add_startup_system(spawn_hud)
             .add_system(update_system_integrity_state)
-            .add_system(update_system_integrity_background.after(update_system_integrity_state))
-            .add_system(update_system_integrity_fan.after(update_system_integrity_state))
-            .add_system(update_system_integrity_digits)
-            .add_system(update_memory_cache_digits)
-            .add_system(update_system_protection_digits);
+            .add_system(update_system_integrity_animation.after(update_system_integrity_state))
+            .add_system(update_system_integrity_color.after(update_system_integrity_state))
+            .add_system(update_bitmap_number_digits::<SystemIntegrityValue, SystemIntegrityDigit>)
+            .add_system(update_bitmap_number_digits::<MemoryCacheValue, MemoryCacheDigit>)
+            .add_system(update_bitmap_number_digits::<SystemProtectionValue, SystemProtectionDigit>);
     }
 }
 
@@ -43,7 +45,7 @@ fn spawn_hud(
     asset_server: Res<AssetServer>,
 ) {
     let window = window_query.get_single().unwrap();
-    commands.spawn((
+    let parent = commands.spawn((
         Hud {},
         SpatialBundle {
             transform: Transform::from_xyz(
@@ -53,7 +55,9 @@ fn spawn_hud(
             ).with_scale(Vec3::splat(2.0)),
             ..default()
         }
-    )).with_children(|parent| {
+    )).id();
+
+    commands.entity(parent).with_children(|parent| {
         spawn_system_integrity(&mut texture_atlases, &asset_server, parent);
         spawn_memory_cache(&mut texture_atlases, &asset_server, parent);
         spawn_system_protection(&mut texture_atlases, &asset_server, parent);

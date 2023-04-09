@@ -2,6 +2,8 @@ use bevy::prelude::*;
 
 use crate::game::animation::{AnimationIndices, AnimationTimer};
 
+use super::bitmap_font::{BitmapNumberConfig, BitmapNumberValue};
+
 #[derive(Component)]
 pub struct SystemIntegrity;
 
@@ -14,8 +16,14 @@ pub struct SystemIntegrityFan;
 #[derive(Component, Reflect)]
 pub struct SystemIntegrityValue(pub u8);
 
+impl BitmapNumberValue for SystemIntegrityValue {
+    fn get_value(&self) -> u8 {
+        self.0
+    }
+}
+
 #[derive(Component, Reflect)]
-pub struct SystemIntegrityValueDigit;
+pub struct SystemIntegrityDigit;
 
 #[derive(States, Debug, Clone, Copy, Default, Eq, PartialEq, Hash)]
 pub(super) enum SystemIntegrityState {
@@ -48,17 +56,27 @@ fn spawn_system_integrity_value(
     asset_server: &Res<AssetServer>,
     parent: &mut ChildBuilder,
 ) {
-    let texture_atlas = &TextureAtlas::from_grid(
+    let tile_size = Vec2::new(6.0, 11.0);
+    let columns = 10;
+
+    let texture_atlas = TextureAtlas::from_grid(
         asset_server.load("textures/UI/SI/UI_SI_Numbers.png"),
-        Vec2::new(6.0, 11.0),
-        10,
+        tile_size,
+        columns,
         3,
         None,
         None,
     );
+    let texture_atlas_handle = &texture_atlases.add(texture_atlas);
 
     parent.spawn((
         SystemIntegrityValue(SYSTEM_INTEGRITY_INITIAL_VALUE),
+        BitmapNumberConfig {
+            tile_size,
+            columns,
+            row: 0,
+            font_spacing: 1.0,
+        },
         SpatialBundle {
             transform: Transform::from_xyz(3.0, 1.5, 0.0),
             ..default()
@@ -66,10 +84,9 @@ fn spawn_system_integrity_value(
     )).with_children(|parent| {
         for _ in 0..3 {
             parent.spawn((
-                SystemIntegrityValueDigit {},
+                SystemIntegrityDigit {},
                 SpriteSheetBundle {
-                    texture_atlas: texture_atlases.add(texture_atlas.clone()),
-                    sprite: TextureAtlasSprite::new(0),
+                    texture_atlas: texture_atlas_handle.clone(),
                     ..default()
                 }
             ));
@@ -159,55 +176,29 @@ pub(super) fn update_system_integrity_state(
     }
 }
 
-pub(super) fn update_system_integrity_digits(
+pub(super) fn update_system_integrity_color(
     state: Res<State<SystemIntegrityState>>,
-    value_query: Query<&SystemIntegrityValue>,
-    mut digit_query: Query<(&mut Transform, &mut TextureAtlasSprite, &mut Visibility), With<SystemIntegrityValueDigit>>,
-) {
-    let value = value_query.get_single().unwrap();
-    let size = Vec2::new(6.0, 11.0);
-    let columns = 10;
-    let spacing: f32 = 1.0;
-
-    let binding = value.0.to_string();
-    let mut digits = binding.chars();
-    let count = digits.clone().count();
-    let width = count as f32 * size.x + (count as f32 - 1.0) * spacing;
-    let line = match state.0 {
-        SystemIntegrityState::Absolute => 0,
-        SystemIntegrityState::Reliable => 1,
-        SystemIntegrityState::Vulnerable | SystemIntegrityState::Hacked => 2
-    };
-
-    digit_query.iter_mut().enumerate().for_each(|(i, item)| {
-        let (mut transform, mut sprite, mut visibility) = item;
-        if let Some(digit_value) = digits.next() {
-            transform.translation.x = -width / 2.0 + i as f32 * (size.x + spacing);
-            let column: usize = digit_value.to_string().parse().unwrap();
-            sprite.index = line * columns + column;
-            *visibility = Visibility::Visible;
-        } else {
-            *visibility = Visibility::Hidden;
-        }
-    });
-}
-
-pub(super) fn update_system_integrity_background(
-    state: Res<State<SystemIntegrityState>>,
-    mut query: Query<&mut TextureAtlasSprite, With<SystemIntegrityBackground>>,
+    mut background_query: Query<&mut TextureAtlasSprite, With<SystemIntegrityBackground>>,
+    mut value_query: Query<&mut BitmapNumberConfig, With<SystemIntegrityValue>>,
 ) {
     if state.is_changed() {
-        if let Ok(mut sprite) = query.get_single_mut() {
-            sprite.index = match state.0 {
-                SystemIntegrityState::Absolute => 0,
-                SystemIntegrityState::Reliable => 1,
-                SystemIntegrityState::Vulnerable | SystemIntegrityState::Hacked => 2
-            }
+        let color_index = match state.0 {
+            SystemIntegrityState::Absolute => 0,
+            SystemIntegrityState::Reliable => 1,
+            SystemIntegrityState::Vulnerable | SystemIntegrityState::Hacked => 2
+        };
+
+        if let Ok(mut sprite) = background_query.get_single_mut() {
+            sprite.index = color_index;
+        }
+
+        if let Ok(mut config) = value_query.get_single_mut() {
+            config.row = color_index;
         }
     }
 }
 
-pub(super) fn update_system_integrity_fan(
+pub(super) fn update_system_integrity_animation(
     state: Res<State<SystemIntegrityState>>,
     mut query: Query<&mut AnimationIndices, With<SystemIntegrityFan>>,
 ) {
