@@ -18,7 +18,7 @@ fn main() {
         // .add_plugin(LogDiagnosticsPlugin::default())
         // .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .add_plugin(WorldInspectorPlugin::new())
-        .add_system(ui_example)
+        // .add_system(ui_example)
         .add_plugin(GamePlugin)
         .run();
 }

@@ -6,7 +6,9 @@ pub const CARDS_DRAWN_AT_START: u8 = 3;
 pub const CARDS_DRAWN_EACH_TURN: u8 = 1;
 pub const PLAY_HAND_LIMIT: u8 = 7;
 
+#[derive(Reflect, Clone, Copy, Debug, PartialEq, Default, Eq, Hash)]
 pub enum PlayerNumber {
+    #[default]
     One,
     Two,
 }
@@ -47,10 +49,10 @@ pub enum TurnState {
     EndTurn,
 }
 
-#[derive(States, Debug, Clone, Copy, Default, Eq, PartialEq, Hash)]
-pub struct CurrentPlayerState(PlayerNumber);
-
 pub struct CombatPlugin;
+
+#[derive(Debug, Clone, Default, Eq, PartialEq, Hash)]
+pub struct CurrentPlayerState(PlayerNumber);
 
 impl Plugin for CombatPlugin {
     fn build(&self, app: &mut App) {
@@ -59,8 +61,8 @@ impl Plugin for CombatPlugin {
             .register_type::<SystemIntegrity>()
             .register_type::<MemoryCache>()
             .add_state::<TurnState>()
-            .add_startup_system(spawn_player(Player::One))
-            .add_startup_system(spawn_player(Player::Two));
+            .add_startup_system(spawn_player(Player(PlayerNumber::One)))
+            .add_startup_system(spawn_player(Player(PlayerNumber::Two)));
     }
 }
 
